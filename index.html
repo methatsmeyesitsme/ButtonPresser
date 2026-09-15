@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Repo Visibility Toggle</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f81f7'/%3E%3Cpath d='M20 32h24M32 20v24' stroke='white' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #2f81f7;
+    --green: #2ea043;
+    --red: #da3633;
+    --orange: #d29922;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 440px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+  }
+  h1 {
+    font-size: 18px;
+    margin: 0 0 4px;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0 0 22px;
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin: 14px 0 6px;
+  }
+  input {
+    width: 100%;
+    padding: 9px 10px;
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px;
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .save-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .save-row input[type="checkbox"] {
+    width: auto;
+  }
+  .save-row span {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .status-box {
+    margin-top: 22px;
+    padding: 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #0d1117;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 20px;
+  }
+  .status-label { font-size: 13px; color: var(--muted); }
+  .status-value { font-size: 14px; font-weight: 600; }
+  .pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .pill.public { background: rgba(46,160,67,0.15); color: var(--green); }
+  .pill.private { background: rgba(218,54,51,0.15); color: var(--red); }
+  .pill.unknown { background: rgba(139,148,158,0.15); color: var(--muted); }
+
+  button {
+    width: 100%;
+    margin-top: 16px;
+    padding: 11px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  #checkBtn {
+    background: var(--border);
+    color: var(--text);
+  }
+  #toggleBtn {
+    background: var(--accent);
+    color: white;
+  }
+  #toggleBtn.make-private {
+    background: var(--red);
+  }
+  #toggleBtn.make-public {
+    background: var(--green);
+  }
+  .msg {
+    margin-top: 12px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    min-height: 16px;
+  }
+  .msg.error { color: #ff7b72; }
+  .msg.success { color: #3fb950; }
+  .msg.info { color: var(--muted); }
+  .note {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .note a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <form id="repoForm" onsubmit="return false;">
+  <h1>Repo Visibility Toggle</h1>
+  <p class="sub">Flip a GitHub repo between public and private.</p>
+
+  <label for="token">Personal Access Token</label>
+  <input type="password" id="token" placeholder="github_pat_..." autocomplete="off">
+
+  <div class="save-row">
+    <input type="checkbox" id="saveToken">
+    <span>Remember token in this browser only (localStorage)</span>
+  </div>
+
+  <label for="owner">Owner / Organization</label>
+  <input type="text" id="owner" placeholder="e.g. your-username">
+
+  <label for="repo">Repository name</label>
+  <input type="text" id="repo" placeholder="e.g. my-project">
+
+  <div class="status-box">
+    <span class="status-label">Current visibility</span>
+    <span class="status-value"><span id="statusPill" class="pill unknown">Unknown</span></span>
+  </div>
+
+  <button id="checkBtn">Check current status</button>
+  <button id="toggleBtn" disabled>Check status first</button>
+
+  <div id="msg" class="msg"></div>
+
+  <div class="note">
+    Token needs the <b>Administration</b> permission (write) on this repo — use a
+    <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained PAT</a>
+    scoped to just this repository if possible. The token is only used to call the GitHub API directly from your browser — it isn't sent anywhere else.
+  </div>
+  </form>
+</div>
+
+<script>
+const tokenEl = document.getElementById('token');
+const ownerEl = document.getElementById('owner');
+const repoEl = document.getElementById('repo');
+const saveTokenEl = document.getElementById('saveToken');
+const statusPill = document.getElementById('statusPill');
+const checkBtn = document.getElementById('checkBtn');
+const toggleBtn = document.getElementById('toggleBtn');
+const msgEl = document.getElementById('msg');
+
+let currentPrivate = null;
+
+window.addEventListener('DOMContentLoaded', () => {
+  const savedOwner = localStorage.getItem('rvt_owner');
+  const savedRepo = localStorage.getItem('rvt_repo');
+  const savedToken = localStorage.getItem('rvt_token');
+  if (savedOwner) ownerEl.value = savedOwner;
+  if (savedRepo) repoEl.value = savedRepo;
+  if (savedToken) {
+    tokenEl.value = savedToken;
+    saveTokenEl.checked = true;
+  }
+});
+
+function setMsg(text, type) {
+  msgEl.textContent = text || '';
+  msgEl.className = 'msg' + (type ? ' ' + type : '');
+}
+
+function setStatusPill(isPrivate) {
+  if (isPrivate === null) {
+    statusPill.textContent = 'Unknown';
+    statusPill.className = 'pill unknown';
+    toggleBtn.textContent = 'Check status first';
+    toggleBtn.disabled = true;
+    toggleBtn.className = '';
+    return;
+  }
+  currentPrivate = isPrivate;
+  if (isPrivate) {
+    statusPill.textContent = 'Private';
+    statusPill.className = 'pill private';
+    toggleBtn.textContent = 'Make Public';
+    toggleBtn.className = 'make-public';
+  } else {
+    statusPill.textContent = 'Public';
+    statusPill.className = 'pill public';
+    toggleBtn.textContent = 'Make Private';
+    toggleBtn.className = 'make-private';
+  }
+  toggleBtn.disabled = false;
+}
+
+function getInputs() {
+  const token = tokenEl.value.trim();
+  const owner = ownerEl.value.trim();
+  const repo = repoEl.value.trim();
+  return { token, owner, repo };
+}
+
+function persistIfWanted() {
+  const { token, owner, repo } = getInputs();
+  if (owner) localStorage.setItem('rvt_owner', owner); else localStorage.removeItem('rvt_owner');
+  if (repo) localStorage.setItem('rvt_repo', repo); else localStorage.removeItem('rvt_repo');
+  if (saveTokenEl.checked && token) {
+    localStorage.setItem('rvt_token', token);
+  } else {
+    localStorage.removeItem('rvt_token');
+  }
+}
+
+async function apiRequest(method, body) {
+  const { token, owner, repo } = getInputs();
+  if (!token || !owner || !repo) {
+    throw new Error('Please fill in token, owner, and repo name.');
+  }
+  const res = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      ...(body ? { 'Content-Type': 'application/json' } : {})
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const errJson = await res.json();
+      detail = errJson.message || '';
+    } catch (e) {}
+    if (res.status === 401) throw new Error('Bad credentials — check your token.');
+    if (res.status === 403) throw new Error('Forbidden — token likely lacks Administration write permission on this repo.');
+    if (res.status === 404) throw new Error('Repo not found — check owner/repo name, or token lacks access.');
+    throw new Error(`GitHub API error (${res.status}): ${detail || 'unknown error'}`);
+  }
+  return res.json();
+}
+
+checkBtn.addEventListener('click', async () => {
+  setMsg('');
+  checkBtn.disabled = true;
+  checkBtn.textContent = 'Checking...';
+  try {
+    persistIfWanted();
+    const data = await apiRequest('GET');
+    setStatusPill(!!data.private);
+    setMsg(`Loaded ${data.full_name}.`, 'success');
+  } catch (err) {
+    setStatusPill(null);
+    setMsg(err.message, 'error');
+  } finally {
+    checkBtn.disabled = false;
+    checkBtn.textContent = 'Check current status';
+  }
+});
+
+toggleBtn.addEventListener('click', async () => {
+  if (currentPrivate === null) return;
+  const target = !currentPrivate;
+  const label = target ? 'private' : 'public';
+  if (!confirm(`Make this repo ${label}? This takes effect immediately.`)) return;
+
+  setMsg('');
+  toggleBtn.disabled = true;
+  const prevText = toggleBtn.textContent;
+  toggleBtn.textContent = 'Updating...';
+  try {
+    persistIfWanted();
+    const data = await apiRequest('PATCH', { private: target });
+    setStatusPill(!!data.private);
+    setMsg(`Repo is now ${data.private ? 'private' : 'public'}.`, 'success');
+  } catch (err) {
+    setMsg(err.message, 'error');
+    toggleBtn.textContent = prevText;
+    toggleBtn.disabled = false;
+  }
+});
+</script>
+
+</body>
+</html>
